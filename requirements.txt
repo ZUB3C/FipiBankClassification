@@ -1,0 +1,6 @@
+aiosqlite
+sqlalchemy
+aiohttp
+requests
+fake-useragent
+bs4
