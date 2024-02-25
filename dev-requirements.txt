@@ -1,0 +1,4 @@
+ruff~=0.2.2
+mypy~=1.8.0
+types-tqdm~=4.66.0
+types-beautifulsoup4~=4.12.0

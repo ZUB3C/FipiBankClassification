@@ -1,6 +1,7 @@
 aiosqlite
-sqlalchemy
 aiohttp
+aiofiles
+sqlalchemy
 requests
 fake-useragent
 bs4

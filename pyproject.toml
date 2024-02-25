@@ -1,0 +1,59 @@
+[tool.ruff]
+target-version = "py310"
+line-length = 99
+exclude = [
+    ".git",
+    ".venv",
+    ".idea",
+    ".tests",
+    ".cache",
+    "venv",
+    "build",
+    "dist",
+    "scripts",
+]
+
+[tool.ruff.lint]
+select = [
+    "C",
+    "DTZ",
+    "E",
+    "F",
+    "I",
+    "ICN",
+    "N",
+    "PLC",
+    "PLE",
+    "Q",
+    "S",
+    "T",
+    "W",
+    "YTT",
+    "RET",
+    "SIM",
+    "ASYNC",
+    "UP",
+]
+ignore = [
+    "T201"
+]
+
+[tool.mypy]
+plugins = [
+    "sqlalchemy.ext.mypy.plugin",
+]
+exclude = [
+    ".git",
+    ".venv",
+    ".idea",
+    ".tests",
+    ".cache",
+    "build",
+    "dist",
+    "venv",
+    "scripts",
+    "old_bank_downloader",
+    "classification",
+    "related-files",
+    "site-data-display-test"
+]

@@ -1,2 +1,0 @@
-class TooManyRetries(Exception):
-    pass

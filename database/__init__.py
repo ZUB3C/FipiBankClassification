@@ -1,2 +1,3 @@
-from .main import Database
 from .models import register_models
+
+__all__ = ["register_models"]
