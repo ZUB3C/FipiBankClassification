@@ -14,9 +14,7 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 from config import CONVERT_SUBJECT_NAME_TO_ABBREVIATION
-from database import register_models
-from database.methods import save_multiple_problems
-from database.models import FipiBankProblem
+from database import FipiBankProblem, register_models, save_multiple_problems
 
 
 class FipiBankClient:
