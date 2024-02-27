@@ -1,5 +1,5 @@
 DATABASE_NAME = "exams_data.db"
-CONVERT_SUBJECT_NAME_TO_ABBREVIATION = {
+SUBJECT_NAME_TO_ABBREVIATION = {
     "Английский язык": "en",
     "Биология": "bio",
     "География": "geo",

@@ -24,7 +24,7 @@ class FipiBankProblem(Base):
     url = Column(String, nullable=False)
     gia_type = Column(String(3), nullable=False)
     condition_html = Column(String, nullable=False)
-    condition_image_urls = Column(String)
+    condition_file_urls = Column(String)
 
     def __repr__(self) -> str:
         return f"<FipiBankProblem subject={self.subject} problem_id={self.problem_id}>"

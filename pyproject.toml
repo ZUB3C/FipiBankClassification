@@ -7,7 +7,6 @@ exclude = [
     ".idea",
     ".tests",
     ".cache",
-    "venv",
     "build",
     "dist",
     "scripts",
