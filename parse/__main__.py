@@ -9,11 +9,12 @@ from types import TracebackType
 from urllib.parse import urljoin
 
 import aiohttp
-from selectolax.parser import HTMLParser
+from selectolax.parser import HTMLParser, Node
 from tqdm import tqdm
 
 from config import SUBJECT_NAME_TO_ABBREVIATION
-from database import FipiBankProblem, register_models, save_multiple_problems
+from database import register_models, save_subject_problems
+from parse.problem_data import ProblemData
 
 
 class FipiBankClient:
@@ -26,20 +27,21 @@ class FipiBankClient:
         self._BASE_INDEX_URL = f"{self._BASE_URL}/index.php"
         self._BASE_QUESTIONS_URL = f"{self._BASE_URL}/questions.php"
         self._PAGE_SIZE_LIMIT = 2**12
-        self._TIMEOUT = 60 * 5
+        self._TIMEOUT = 60 * 5  # in seconds
 
-        connector = aiohttp.TCPConnector(ssl=False)  # to connect to fipi.ru
-        self._session = aiohttp.ClientSession(
-            connector=connector,
-        )
+        connector = aiohttp.TCPConnector(ssl=False)  # disable ssl to connect to fipi.ru
+        self._session = aiohttp.ClientSession(connector=connector)
 
     async def __aenter__(self) -> FipiBankClient:
         return self
 
-    async def _get(self, *args: int | str, **kwargs: [str, str]) -> str:
-        async with self._session.get(
-            *args, **kwargs, verify_ssl=False, timeout=self._TIMEOUT
-        ) as response:
+    async def __aexit__(
+        self, exc_type: type[BaseException], exc: BaseException, tb: TracebackType
+    ) -> None:
+        await self._session.close()
+
+    async def _get(self, *args: str, **kwargs: [str, str]) -> str:
+        async with self._session.get(*args, **kwargs, timeout=self._TIMEOUT) as response:
             # print(f"{response.status}: {response.url}")
             if response.status == 500:
                 delay_between_retry = random.uniform(7.5, 15)  # noqa: S311
@@ -47,11 +49,6 @@ class FipiBankClient:
                 await asyncio.sleep(delay_between_retry)
                 return await self._get(*args, **kwargs)
             return await response.text()
-
-    async def __aexit__(
-        self, exc_type: type[BaseException], exc: BaseException, tb: TracebackType
-    ) -> None:
-        await self._session.close()
 
     async def get_subject_ids(self) -> dict[str, str]:
         main_page_html = await self._get(url=self._BASE_URL)
@@ -63,8 +60,8 @@ class FipiBankClient:
         }
 
     def _get_problem_data_from_tag(
-        self, problem_tag: HTMLParser, subject: str, subject_id: str, gia_type: str
-    ) -> FipiBankProblem:
+        self, problem_tag: HTMLParser | Node, subject: str, subject_id: str, gia_type: str
+    ) -> ProblemData:
         problem_id = problem_tag.css_first("div.qblock").attributes["id"].lstrip("q")
         condition_html = problem_tag.html
 
@@ -80,13 +77,14 @@ class FipiBankClient:
                     condition_file_urls.append(image_url)
 
         url = f"{self._BASE_QUESTIONS_URL}?search=1&proj={subject_id}&qid={problem_id}"
-        return FipiBankProblem(
+        return ProblemData(
             problem_id=problem_id,
-            subject=subject,
+            subject_name=subject,
+            subject_hash=subject_id,
             url=url,
             gia_type=gia_type,
             condition_html=condition_html,
-            condition_file_urls=";".join(condition_file_urls) or None,
+            file_urls=condition_file_urls,
         )
 
     async def _get_subject_problems_html(self, subject_id: str) -> str:
@@ -100,13 +98,13 @@ class FipiBankClient:
 
     def _parse_subject_problems_from_html(
         self, html: str, subject: str, subject_id: str
-    ) -> list[FipiBankProblem]:
+    ) -> list[ProblemData]:
         doc = HTMLParser(html)
 
         problem_cards = doc.css("div.qblock")
 
         skip_next_card = False
-        problems_data_list: list[FipiBankProblem] = []
+        problems_data_list: list[ProblemData] = []
         for first_card_tag, second_card_tag in zip(problem_cards, problem_cards[1:]):
             if skip_next_card:
                 skip_next_card = False
@@ -148,19 +146,21 @@ class FipiBankClient:
         # The requests to the API of fipi.ru are heavy for their server,
         # so we can't make them asynchronously. Synchronous realization:
         pages_htmls: list[str] = []
-        for subject, subject_id in tqdm(subject_ids.items(), desc="Synchronously fetching problems API"):
+        for subject, subject_id in tqdm(
+            subject_ids.items(), desc="Synchronously fetching problems API"
+        ):
             pages_htmls.append(await self._get_subject_problems_html(subject_id))
 
         print("Got all htmls. Started parsing them")
 
-        subject_problems_list: list[list[FipiBankProblem]] = []
+        subject_problems_list: list[list[ProblemData]] = []
 
         for html, (subject, subject_id) in zip(pages_htmls, subject_ids.items()):
             subject_problems_list.append(
                 self._parse_subject_problems_from_html(html, subject, subject_id)
             )
         for subject_problems in tqdm(subject_problems_list, desc="Saving problems to database"):
-            await save_multiple_problems(subject_problems)
+            await save_subject_problems(subject_problems)
 
         print(f"Total time: {time.perf_counter() - t1: .2f}")
 
@@ -183,7 +183,7 @@ class FipiBankClient:
         print(f"Parsed {len(problem_cards)} qblock div tags.")
 
         skip_next_card = False
-        problems_data_list: list[FipiBankProblem] = []
+        problems_data_list: list[ProblemData] = []
         for first_card_tag, second_card_tag in zip(problem_cards, problem_cards[1:]):
             if skip_next_card:
                 skip_next_card = False
@@ -202,7 +202,7 @@ class FipiBankClient:
 
         t1 = time.perf_counter()
 
-        await save_multiple_problems(problems_data_list)
+        await save_subject_problems(problems_data_list)
         print(
             f"Adding {subject} {self.gia_type} problems to database took "
             f"{round(time.perf_counter() - t1, 1)}s."
