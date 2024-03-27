@@ -46,6 +46,15 @@ class Subject(Base):
     hash = Column(String, unique=True, nullable=False)
 
 
+class Theme(Base):
+    __tablename__ = "codifier_themes"
+
+    id = Column(Integer, primary_key=True)
+    subject_id = Column(Integer, ForeignKey("subjects.id"))
+    codifier_id = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+
+
 class FipiBankProblem(Base):
     __tablename__ = "fipibank_problems"
 
@@ -58,6 +67,7 @@ class FipiBankProblem(Base):
     )
     subjects = relationship("Subject", secondary="fipibank_problems_subjects")
     file_urls = relationship("FipiBankProblemFile")
+    themes = relationship("Theme", secondary="fipibank_problems_codifier_themes")
 
     def __repr__(self) -> str:
         return f"<FipiBankProblem problem_id={self.problem_id}>"
@@ -83,6 +93,13 @@ class FipiBankProblemFile(Base):
     id = Column(Integer, primary_key=True)
     fipibank_problem_id = Column(Integer, ForeignKey("fipibank_problems.id"))
     file_url = Column(String, nullable=False)
+
+
+class FipiBankProblemCodifierTheme(Base):
+    __tablename__ = "fipibank_problems_codifier_themes"
+
+    fipibank_problem_id = Column(Integer, ForeignKey("fipibank_problems.id"), primary_key=True)
+    codifier_theme_id = Column(Integer, ForeignKey("codifier_themes.id"))
 
 
 async def register_models() -> None:

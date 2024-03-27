@@ -1,9 +1,14 @@
-from __future__ import annotations
-
-from typing import NamedTuple
+from dataclasses import dataclass
 
 
-class ProblemData(NamedTuple):
+@dataclass
+class ThemeData:
+    codifier_id: str
+    name: str
+
+
+@dataclass
+class ProblemData:
     problem_id: str
     subject_name: str
     subject_hash: str
@@ -11,3 +16,4 @@ class ProblemData(NamedTuple):
     condition_html: str
     gia_type: str
     file_urls: list[str]
+    themes: list[ThemeData]

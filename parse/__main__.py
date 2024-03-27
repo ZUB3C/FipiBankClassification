@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import random
 import re
 import time
 from types import TracebackType
+from typing import Any
 from urllib.parse import urljoin
 
 import aiohttp
@@ -14,41 +14,70 @@ from tqdm import tqdm
 
 from config import SUBJECT_NAME_TO_ABBREVIATION
 from database import register_models, save_subject_problems
-from parse.problem_data import ProblemData
+from parse.problem_data import ProblemData, ThemeData
 
 
 class FipiBankClient:
+    _PROBLEMS_API_PAGE_SIZE_LIMIT = 2**12
+    _TIMEOUT = 60 * 5
+    _BASE_URL: str = ""
+    _BASE_INDEX_URL: str = ""
+    _BASE_QUESTIONS_URL: str = ""
+
     def __init__(self, gia_type: str) -> None:
-        if gia_type not in ["oge", "ege"]:
-            raise ValueError(f'gia_type can be only "oge" or "ege", not {gia_type}')
+        self.set_gia_type(gia_type)
         self.gia_type = gia_type
 
-        self._BASE_URL = f"https://{gia_type}.fipi.ru/bank"
-        self._BASE_INDEX_URL = f"{self._BASE_URL}/index.php"
-        self._BASE_QUESTIONS_URL = f"{self._BASE_URL}/questions.php"
-        self._PAGE_SIZE_LIMIT = 2**12
-        self._TIMEOUT = 60 * 5  # in seconds
-
         connector = aiohttp.TCPConnector(ssl=False)  # disable ssl to connect to fipi.ru
-        self._session = aiohttp.ClientSession(connector=connector)
+        self._session = aiohttp.ClientSession(
+            connector=connector, timeout=aiohttp.ClientTimeout(self._TIMEOUT)
+        )
 
     async def __aenter__(self) -> FipiBankClient:
         return self
 
     async def __aexit__(
-        self, exc_type: type[BaseException], exc: BaseException, tb: TracebackType
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         await self._session.close()
 
-    async def _get(self, *args: str, **kwargs: [str, str]) -> str:
-        async with self._session.get(*args, **kwargs, timeout=self._TIMEOUT) as response:
-            # print(f"{response.status}: {response.url}")
-            if response.status == 500:
+    def set_gia_type(self, gia_type: str):
+        if gia_type not in ["oge", "ege"]:
+            raise ValueError(f'gia_type can be only "oge" or "ege", not {gia_type}')
+        self._BASE_URL = f"https://{gia_type}.fipi.ru/bank"
+        self._BASE_INDEX_URL = f"{self._BASE_URL}/index.php"
+        self._BASE_QUESTIONS_URL = f"{self._BASE_URL}/questions.php"
+
+    async def _get(self, url: str, params: dict[str, Any] | None = None) -> str:
+        if not params:
+            params = {}
+        try:
+            async with self._session.get(
+                url=url, params=params, timeout=self._TIMEOUT
+            ) as response:
+                # print(f"GET {response.status}: {response.url}")
+                if response.status == 500:
+                    delay_between_retry = random.uniform(7.5, 15)  # noqa: S311
+                    print(f"Retrying {response.url}. Sleeping for {delay_between_retry} s.")
+                    await asyncio.sleep(delay_between_retry)
+                    return await self._get(url=url, params=params)
+                return await response.text()
+        except aiohttp.ClientError as e:
+            if (isinstance(e, aiohttp.ClientResponseError) and e.status == 500) or isinstance(
+                e, aiohttp.ServerDisconnectedError
+            ):
+                # Retry only on 500 status codes
                 delay_between_retry = random.uniform(7.5, 15)  # noqa: S311
-                # print(f"Retrying {response.url}. Sleeping for {delay_between_retry} s.")
+                print(f"Retrying {url}. Sleeping for {delay_between_retry} s. Error: {e}")
                 await asyncio.sleep(delay_between_retry)
-                return await self._get(*args, **kwargs)
-            return await response.text()
+                return await self._get(url=url, params=params)
+            else:  # noqa: RET505
+                # Handle other client errors
+                print(f"Error encountered: {e}")
+                raise e  # Rethrow the exception if it's not a 500 status code
 
     async def get_subject_ids(self) -> dict[str, str]:
         main_page_html = await self._get(url=self._BASE_URL)
@@ -60,7 +89,7 @@ class FipiBankClient:
         }
 
     def _get_problem_data_from_tag(
-        self, problem_tag: HTMLParser | Node, subject: str, subject_id: str, gia_type: str
+        self, problem_tag: HTMLParser | Node, subject_name: str, subject_hash: str, gia_type: str
     ) -> ProblemData:
         problem_id = problem_tag.css_first("div.qblock").attributes["id"].lstrip("q")
         condition_html = problem_tag.html
@@ -76,28 +105,32 @@ class FipiBankClient:
                     image_url = urljoin(self._BASE_URL, image_url.lstrip("../../"))
                     condition_file_urls.append(image_url)
 
-        url = f"{self._BASE_QUESTIONS_URL}?search=1&proj={subject_id}&qid={problem_id}"
+        url = f"{self._BASE_QUESTIONS_URL}?search=1&proj={subject_hash}&qid={problem_id}"
         return ProblemData(
             problem_id=problem_id,
-            subject_name=subject,
-            subject_hash=subject_id,
+            subject_name=subject_name,
+            subject_hash=subject_hash,
             url=url,
             gia_type=gia_type,
             condition_html=condition_html,
             file_urls=condition_file_urls,
+            themes=[],
         )
 
-    async def _get_subject_problems_html(self, subject_id: str) -> str:
+    async def _get_subject_problems_html(
+        self, subject_hash: str, *, theme_ids: list[str] | None = None
+    ) -> str:
         params = {
-            "proj": subject_id,
-            "pagesize": self._PAGE_SIZE_LIMIT,
             "search": 1,
+            "pagesize": self._PROBLEMS_API_PAGE_SIZE_LIMIT,
+            "proj": subject_hash,
+            "theme": ",".join(theme_ids) if theme_ids else "",
         }
 
         return await self._get(url=self._BASE_QUESTIONS_URL, params=params)
 
     def _parse_subject_problems_from_html(
-        self, html: str, subject: str, subject_id: str
+        self, html: str, subject_name: str, subject_hash: str
     ) -> list[ProblemData]:
         doc = HTMLParser(html)
 
@@ -117,13 +150,13 @@ class FipiBankClient:
             else:
                 problem_tag = first_card_tag
             problem_data = self._get_problem_data_from_tag(
-                problem_tag, subject, subject_id, self.gia_type
+                problem_tag, subject_name, subject_hash, self.gia_type
             )
             problems_data_list.append(problem_data)
         return problems_data_list
 
-    async def get_theme_names_and_ids(self, subject_id: str) -> dict[str, str]:
-        params = {"proj": subject_id}
+    async def get_theme_names_and_ids(self, subject_hash: str) -> dict[str, str]:
+        params = {"proj": subject_hash}
         html = await self._get(url=self._BASE_INDEX_URL, params=params)
         parser = HTMLParser(html)
         data = {}
@@ -139,44 +172,82 @@ class FipiBankClient:
             data[id_str] = title
         return data
 
+    @staticmethod
+    def _get_all_problem_themes_data(
+        problem_data: ProblemData, subject_problems: list[ProblemData]
+    ) -> list[ThemeData]:
+        all_problem_themes = []
+        for prob in subject_problems:
+            if prob.problem_id == problem_data.problem_id:
+                all_problem_themes.extend(prob.themes)
+        return all_problem_themes
+
     async def parse_and_save_all_problems(self) -> None:
         t1 = time.perf_counter()
         subject_ids = await self.get_subject_ids()
+        get_pages_htmls_tasks: list[asyncio.Task[str]] = []
+        subject_themes_data: dict[
+            str, dict[str, str]
+        ] = {}  # key -- hash, value -- themes_data dict
+        for subject_name, subject_hash in subject_ids.items():
+            themes_data = await self.get_theme_names_and_ids(subject_hash=subject_hash)
+            subject_themes_data[subject_hash] = themes_data
+            for theme_codifier_id, theme_name in themes_data.items():
+                get_pages_htmls_tasks.append(
+                    asyncio.create_task(
+                        self._get_subject_problems_html(
+                            subject_hash=subject_hash, theme_ids=[theme_codifier_id]
+                        )
+                    )
+                )
 
-        # The requests to the API of fipi.ru are heavy for their server,
-        # so we can't make them asynchronously. Synchronous realization:
-        pages_htmls: list[str] = []
-        for subject, subject_id in tqdm(
-            subject_ids.items(), desc="Synchronously fetching problems API"
-        ):
-            pages_htmls.append(await self._get_subject_problems_html(subject_id))
+        pages_htmls: tuple[str] = await asyncio.gather(*get_pages_htmls_tasks)
 
         print("Got all htmls. Started parsing them")
 
         subject_problems_list: list[list[ProblemData]] = []
-
-        for html, (subject, subject_id) in zip(pages_htmls, subject_ids.items()):
-            subject_problems_list.append(
-                self._parse_subject_problems_from_html(html, subject, subject_id)
-            )
-        for subject_problems in tqdm(subject_problems_list, desc="Saving problems to database"):
-            await save_subject_problems(subject_problems)
-
+        html_index = 0
+        for subject_name, subject_hash in tqdm(
+            subject_ids.items(), desc="Parsing subjects problems"
+        ):
+            themes_data = subject_themes_data[subject_hash]
+            for theme_codifier_id, theme_name in themes_data.items():
+                html = pages_htmls[html_index]
+                subject_problems: list[ProblemData] = self._parse_subject_problems_from_html(
+                    html, subject_name, subject_hash
+                )
+                # print(f"{theme_codifier_id}. {theme_name}: {len(subject_problems)}")
+                for subject_problem in subject_problems:
+                    subject_problem.themes = [
+                        ThemeData(codifier_id=theme_codifier_id, name=theme_name)
+                    ]
+                subject_problems_list.append(subject_problems)
+                html_index += 1
+        for subject_problems in subject_problems_list:
+            for problem_data in subject_problems:
+                all_problem_themes = self._get_all_problem_themes_data(
+                    problem_data, subject_problems
+                )
+                problem_data.themes = all_problem_themes
+        all_problems = []
+        for subject_problems in subject_problems_list:
+            all_problems.extend(subject_problems)
+        await save_subject_problems(all_problems)
         print(f"Total time: {time.perf_counter() - t1: .2f}")
 
-    async def parse_subject_problems(self, subject: str, subject_id: str) -> None:
+    async def parse_subject_problems(self, subject_name: str, subject_hash: str) -> None:
         params = {
-            "proj": subject_id,
-            "pagesize": self._PAGE_SIZE_LIMIT,
+            "proj": subject_hash,
+            "pagesize": self._PROBLEMS_API_PAGE_SIZE_LIMIT,
             "search": 1,
         }
 
         html = await self._get(url=self._BASE_QUESTIONS_URL, params=params)
-        print(f"Started parsing {subject} {self.gia_type} problems.")
+        print(f"Started parsing {subject_name} {self.gia_type} problems.")
         t1 = time.perf_counter()
         doc = HTMLParser(html)
         print(
-            f"Parsing {subject} {self.gia_type} problems"
+            f"Parsing {subject_name} {self.gia_type} problems"
             f"took {round(time.perf_counter() - t1, 1)}s."
         )
         problem_cards = doc.css("div.qblock")
@@ -196,7 +267,7 @@ class FipiBankClient:
             else:
                 problem_tag = first_card_tag
             problem_data = self._get_problem_data_from_tag(
-                problem_tag, subject, subject_id, self.gia_type
+                problem_tag, subject_name, subject_hash, self.gia_type
             )
             problems_data_list.append(problem_data)
 
@@ -204,7 +275,7 @@ class FipiBankClient:
 
         await save_subject_problems(problems_data_list)
         print(
-            f"Adding {subject} {self.gia_type} problems to database took "
+            f"Adding {subject_name} {self.gia_type} problems to database took "
             f"{round(time.perf_counter() - t1, 1)}s."
         )
 
@@ -213,10 +284,8 @@ async def main() -> None:
     await register_models()
     gia_type = "ege"
     async with FipiBankClient(gia_type) as client:
-        subjects_ids = await client.get_subject_ids()
-        print(json.dumps(subjects_ids, ensure_ascii=False, indent=4))
-        themes_data = await client.get_theme_names_and_ids(subject_id=subjects_ids["inf"])
-        print(json.dumps(themes_data, ensure_ascii=False, indent=4))
+        await client.parse_and_save_all_problems()
+        client.set_gia_type("oge")
         await client.parse_and_save_all_problems()
 
 

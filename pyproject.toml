@@ -54,5 +54,10 @@ exclude = [
     "old_bank_downloader",
     "classification",
     "related-files",
-    "site-data-display-test"
+    "site-data-display-test",
+    "test_html_parsers"
 ]
+
+[[tool.mypy.overrides]]
+module = "selectolax.*"
+ignore_missing_imports = true

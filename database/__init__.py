@@ -4,6 +4,7 @@ from .models import (
     FipiBankProblemFile,
     GiaType,
     Subject,
+    Theme,
     async_session,
     register_models,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "save_subject_problems",
     "GiaType",
     "Subject",
+    "Theme",
     "FipiBankProblem",
     "FipiBankProblemFile",
 ]
