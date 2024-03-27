@@ -12,7 +12,6 @@ import aiohttp
 from selectolax.parser import HTMLParser, Node
 from tqdm import tqdm
 
-from config import SUBJECT_NAME_TO_ABBREVIATION
 from database import register_models, save_subject_problems
 from parse.problem_data import ProblemData, ThemeData
 
@@ -66,27 +65,16 @@ class FipiBankClient:
                     return await self._get(url=url, params=params)
                 return await response.text()
         except aiohttp.ClientError as e:
-            if (isinstance(e, aiohttp.ClientResponseError) and e.status == 500) or isinstance(
-                e, aiohttp.ServerDisconnectedError
-            ):
-                # Retry only on 500 status codes
-                delay_between_retry = random.uniform(7.5, 15)  # noqa: S311
-                print(f"Retrying {url}. Sleeping for {delay_between_retry} s. Error: {e}")
-                await asyncio.sleep(delay_between_retry)
-                return await self._get(url=url, params=params)
-            else:  # noqa: RET505
-                # Handle other client errors
-                print(f"Error encountered: {e}")
-                raise e  # Rethrow the exception if it's not a 500 status code
+            delay_between_retry = random.uniform(7.5, 15)  # noqa: S311
+            print(f"Retrying {url}. Sleeping for {delay_between_retry} s. Error: {e}")
+            await asyncio.sleep(delay_between_retry)
+            return await self._get(url=url, params=params)
 
     async def get_subject_ids(self) -> dict[str, str]:
         main_page_html = await self._get(url=self._BASE_URL)
         parser = HTMLParser(main_page_html)
         exam_cards = parser.css("ul")[1].css("li")
-        return {
-            SUBJECT_NAME_TO_ABBREVIATION[i.text(strip=True)]: i.attributes.get("id", "")[2:]
-            for i in exam_cards
-        }
+        return {i.text(strip=True): i.attributes.get("id", "")[2:] for i in exam_cards}
 
     def _get_problem_data_from_tag(
         self, problem_tag: HTMLParser | Node, subject_name: str, subject_hash: str, gia_type: str

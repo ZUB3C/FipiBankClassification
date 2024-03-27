@@ -1,3 +1,3 @@
-from .config import DATABASE_NAME, SUBJECT_NAME_TO_ABBREVIATION
+from .config import DATABASE_NAME
 
-__all__ = ["DATABASE_NAME", "SUBJECT_NAME_TO_ABBREVIATION"]
+__all__ = ["DATABASE_NAME"]
