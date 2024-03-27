@@ -13,9 +13,9 @@
 ```shell
 git clone https://github.com/ZUB3C/FipiBankClassification
 cd FipiBankClassification
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
 ## Установка (Windows)
@@ -23,12 +23,17 @@ pip install -r requirements.txt
 ```shell
 git clone https://github.com/ZUB3C/FipiBankClassification
 cd FipiBankClassification
-python -m venv venv
-source \venv\Scripts\activate
-pip install -r requirements.txt
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -r requirements.txt
 ```
 
-## Сбор базы данных
+## Для разработчиков
+```shell
+python -m pip install -r dev-requirements.txt
+```
+
+## Сбор базы данных со всеми задачами ОГЭ и ЕГЭ
 
 ```shell
 python -m parse
