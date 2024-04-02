@@ -1,6 +1,6 @@
 from enum import Enum
 
-from sqlalchemy import Column, ForeignKey, Integer, String, delete
+from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint, delete
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncEngine,
@@ -97,9 +97,16 @@ class FipiBankProblemFile(Base):
 
 class FipiBankProblemCodifierTheme(Base):
     __tablename__ = "fipibank_problems_codifier_themes"
-
     fipibank_problem_id = Column(Integer, ForeignKey("fipibank_problems.id"), primary_key=True)
-    codifier_theme_id = Column(Integer, ForeignKey("codifier_themes.id"))
+    codifier_theme_id = Column(Integer, ForeignKey("codifier_themes.id"), primary_key=True)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "fipibank_problem_id",
+            "codifier_theme_id",
+            name="unique_fipibank_problem_codifier_theme",
+        ),
+    )
 
 
 async def register_models() -> None:

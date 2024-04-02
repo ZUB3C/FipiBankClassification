@@ -7,7 +7,10 @@ from tqdm import tqdm
 
 from database.models import (
     FipiBankProblem,
+    FipiBankProblemCodifierTheme,
     FipiBankProblemFile,
+    FipiBankProblemGiaType,
+    FipiBankProblemSubject,
     GiaType,
     Subject,
     Theme,
@@ -17,6 +20,7 @@ from parse.problem_data import ProblemData
 
 
 async def save_subject_problems(problems_data: list[ProblemData]) -> None:
+    # print(problems_data)
     async with async_session() as session, session.begin():
         # Creating or retrieving theme objects from the database
         theme_objects = {}
@@ -42,7 +46,7 @@ async def save_subject_problems(problems_data: list[ProblemData]) -> None:
                 )
                 session.add(subject_obj)
             for theme_data in problem_data.themes:
-                if theme_data.codifier_id not in theme_objects:
+                if (theme_data.codifier_id, problem_data.subject_hash) not in theme_objects:
                     theme_obj = await session.execute(
                         select(Theme)
                         .filter(Theme.codifier_id == theme_data.codifier_id)
@@ -56,7 +60,7 @@ async def save_subject_problems(problems_data: list[ProblemData]) -> None:
                             name=theme_data.name,
                         )
                         session.add(theme_obj)
-                    theme_objects[theme_data.codifier_id] = theme_obj
+                    theme_objects[(theme_data.codifier_id, problem_data.subject_hash)] = theme_obj
             try:
                 (
                     await session.execute(
@@ -78,9 +82,63 @@ async def save_subject_problems(problems_data: list[ProblemData]) -> None:
                         for file_url in problem_data.file_urls
                     ],
                     themes=[
-                        theme_objects[theme_data.codifier_id] for theme_data in problem_data.themes
+                        theme_objects[(theme_data.codifier_id, problem_data.subject_hash)]
+                        for theme_data in problem_data.themes
                     ],
                 )
                 session.add(problem)
 
         await session.commit()
+
+
+async def get_problems_with_details(
+    gia_type: str, subject_name: str, theme_codifier_id: str
+) -> pd.DataFrame:
+    async with async_session() as session:
+        stmt = (
+            select(
+                FipiBankProblem.problem_id,
+                FipiBankProblem.url,
+                FipiBankProblem.condition_html,
+                GiaType.name.label("gia_type"),
+                Subject.name.label("subject_name"),
+                Theme.codifier_id.label("theme_codifier_id"),
+            )
+            .select_from(
+                FipiBankProblem.__table__.join(FipiBankProblemGiaType)
+                .join(GiaType)
+                .join(FipiBankProblemSubject)
+                .join(Subject)
+                .join(FipiBankProblemCodifierTheme)
+                .join(Theme)
+            )
+            .where(
+                GiaType.name == gia_type,
+                Subject.name == subject_name,
+                Theme.codifier_id == theme_codifier_id,
+            )
+            .where(Subject.name == subject_name)
+        )
+
+        result = await session.execute(stmt)
+        rows = result.fetchall()
+
+        return pd.DataFrame(rows, columns=result.keys())
+
+
+if __name__ == "__main__":
+    gia_type = "ege"
+    subject_name = "Информатика и ИКТ"
+    theme_codifier_id = "1.1"
+    df = asyncio.run(get_problems_with_details(gia_type, subject_name, theme_codifier_id))
+    print(
+        df[
+            [
+                "problem_id",
+                "url",
+                "gia_type",
+                "subject_name",
+                "theme_codifier_id",
+            ]
+        ].to_string()
+    )

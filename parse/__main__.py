@@ -67,7 +67,8 @@ class FipiBankClient:
         except asyncio.TimeoutError:
             delay_between_retry = random.uniform(7.5, 15)
             print(
-                f"Retrying {urljoin(url, '?' + urlencode(params))}. Sleeping for {delay_between_retry} s."
+                f"Retrying {urljoin(url, '?' + urlencode(params))}."
+                f"Sleeping for {delay_between_retry} s."
             )
             await asyncio.sleep(delay_between_retry)
             return await self._get(url=url, params=params)
@@ -195,8 +196,8 @@ class FipiBankClient:
 
         print("Got all htmls. Started parsing them")
 
-        subject_problems_list: list[list[ProblemData]] = []
-        html_index = 0
+        all_problems = []  # Accumulate all problems here
+
         for subject_name, subject_hash in tqdm(
             subject_ids.items(), desc="Parsing subjects problems"
         ):
