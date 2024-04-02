@@ -62,10 +62,10 @@ class FipiBankProblem(Base):
     problem_id = Column(String(6), nullable=False)
     url = Column(String, nullable=False)
     condition_html = Column(String, nullable=False)
-    gia_types = relationship(
+    gia_type = relationship(
         "GiaType", secondary="fipibank_problems_gia_types", backref="fipibank_problems"
     )
-    subjects = relationship("Subject", secondary="fipibank_problems_subjects")
+    subject = relationship("Subject", secondary="fipibank_problems_subjects")
     file_urls = relationship("FipiBankProblemFile")
     themes = relationship("Theme", secondary="fipibank_problems_codifier_themes")
 

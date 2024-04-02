@@ -6,7 +6,7 @@ import re
 import time
 from types import TracebackType
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 import aiohttp
 from selectolax.parser import HTMLParser, Node
@@ -18,18 +18,18 @@ from parse.problem_data import ProblemData, ThemeData
 
 class FipiBankClient:
     _PROBLEMS_API_PAGE_SIZE_LIMIT = 2**12
-    _TIMEOUT = 60 * 5
+    _TIMEOUT = 60
     _BASE_URL: str = ""
     _BASE_INDEX_URL: str = ""
     _BASE_QUESTIONS_URL: str = ""
 
     def __init__(self, gia_type: str) -> None:
         self.set_gia_type(gia_type)
-        self.gia_type = gia_type
+        self._gia_type = gia_type
 
-        connector = aiohttp.TCPConnector(ssl=False)  # disable ssl to connect to fipi.ru
         self._session = aiohttp.ClientSession(
-            connector=connector, timeout=aiohttp.ClientTimeout(self._TIMEOUT)
+            connector=aiohttp.TCPConnector(ssl=False),  # disable ssl to connect to fipi.ru,
+            timeout=aiohttp.ClientTimeout(self._TIMEOUT),
         )
 
     async def __aenter__(self) -> FipiBankClient:
@@ -57,16 +57,18 @@ class FipiBankClient:
             async with self._session.get(
                 url=url, params=params, timeout=self._TIMEOUT
             ) as response:
-                # print(f"GET {response.status}: {response.url}")
+                print(f"GET {response.status}: {response.url}")
                 if response.status == 500:
-                    delay_between_retry = random.uniform(7.5, 15)  # noqa: S311
+                    delay_between_retry = random.uniform(7.5, 15)
                     print(f"Retrying {response.url}. Sleeping for {delay_between_retry} s.")
                     await asyncio.sleep(delay_between_retry)
                     return await self._get(url=url, params=params)
                 return await response.text()
-        except aiohttp.ClientError as e:
-            delay_between_retry = random.uniform(7.5, 15)  # noqa: S311
-            print(f"Retrying {url}. Sleeping for {delay_between_retry} s. Error: {e}")
+        except asyncio.TimeoutError:
+            delay_between_retry = random.uniform(7.5, 15)
+            print(
+                f"Retrying {urljoin(url, '?' + urlencode(params))}. Sleeping for {delay_between_retry} s."
+            )
             await asyncio.sleep(delay_between_retry)
             return await self._get(url=url, params=params)
 
@@ -138,7 +140,7 @@ class FipiBankClient:
             else:
                 problem_tag = first_card_tag
             problem_data = self._get_problem_data_from_tag(
-                problem_tag, subject_name, subject_hash, self.gia_type
+                problem_tag, subject_name, subject_hash, self._gia_type
             )
             problems_data_list.append(problem_data)
         return problems_data_list
@@ -199,27 +201,24 @@ class FipiBankClient:
             subject_ids.items(), desc="Parsing subjects problems"
         ):
             themes_data = subject_themes_data[subject_hash]
-            for theme_codifier_id, theme_name in themes_data.items():
-                html = pages_htmls[html_index]
+            subject_problems_list: list[ProblemData] = []  # Store problems for current subject
+            for html, (theme_codifier_id, theme_name) in zip(pages_htmls, themes_data.items()):
                 subject_problems: list[ProblemData] = self._parse_subject_problems_from_html(
                     html, subject_name, subject_hash
                 )
-                # print(f"{theme_codifier_id}. {theme_name}: {len(subject_problems)}")
                 for subject_problem in subject_problems:
                     subject_problem.themes = [
                         ThemeData(codifier_id=theme_codifier_id, name=theme_name)
                     ]
-                subject_problems_list.append(subject_problems)
-                html_index += 1
-        for subject_problems in subject_problems_list:
-            for problem_data in subject_problems:
+                subject_problems_list.extend(subject_problems)
+
+            # Process and set themes for each problem in the subject
+            for problem_data in subject_problems_list:
                 all_problem_themes = self._get_all_problem_themes_data(
-                    problem_data, subject_problems
+                    problem_data, subject_problems_list
                 )
                 problem_data.themes = all_problem_themes
-        all_problems = []
-        for subject_problems in subject_problems_list:
-            all_problems.extend(subject_problems)
+                all_problems.append(problem_data)
         await save_subject_problems(all_problems)
         print(f"Total time: {time.perf_counter() - t1: .2f}")
 
@@ -231,11 +230,11 @@ class FipiBankClient:
         }
 
         html = await self._get(url=self._BASE_QUESTIONS_URL, params=params)
-        print(f"Started parsing {subject_name} {self.gia_type} problems.")
+        print(f"Started parsing {subject_name} {self._gia_type} problems.")
         t1 = time.perf_counter()
         doc = HTMLParser(html)
         print(
-            f"Parsing {subject_name} {self.gia_type} problems"
+            f"Parsing {subject_name} {self._gia_type} problems"
             f"took {round(time.perf_counter() - t1, 1)}s."
         )
         problem_cards = doc.css("div.qblock")
@@ -255,7 +254,7 @@ class FipiBankClient:
             else:
                 problem_tag = first_card_tag
             problem_data = self._get_problem_data_from_tag(
-                problem_tag, subject_name, subject_hash, self.gia_type
+                problem_tag, subject_name, subject_hash, self._gia_type
             )
             problems_data_list.append(problem_data)
 
@@ -263,7 +262,7 @@ class FipiBankClient:
 
         await save_subject_problems(problems_data_list)
         print(
-            f"Adding {subject_name} {self.gia_type} problems to database took "
+            f"Adding {subject_name} {self._gia_type} problems to database took "
             f"{round(time.perf_counter() - t1, 1)}s."
         )
 

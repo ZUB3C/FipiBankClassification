@@ -34,7 +34,8 @@ select = [
     "UP",
 ]
 ignore = [
-    "T201"
+    "T201",
+    "S311"
 ]
 
 [tool.mypy]
