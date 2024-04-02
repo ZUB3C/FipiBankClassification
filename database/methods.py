@@ -1,3 +1,6 @@
+import asyncio
+
+import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 from tqdm import tqdm
@@ -17,7 +20,7 @@ async def save_subject_problems(problems_data: list[ProblemData]) -> None:
     async with async_session() as session, session.begin():
         # Creating or retrieving theme objects from the database
         theme_objects = {}
-        for problem_data in problems_data:
+        for problem_data in tqdm(problems_data, desc="Saving problems to database"):
             # Creating or retrieving gia_type object from the database
             gia_type_obj = (
                 await session.execute(
@@ -30,7 +33,7 @@ async def save_subject_problems(problems_data: list[ProblemData]) -> None:
 
             # Creating or retrieving subject object from the database
             subject_obj = await session.execute(
-                select(Subject).filter(Subject.hash == problem_data.subject_hash)
+                select(Subject).filter(Subject.name == problem_data.subject_name)
             )
             subject_obj = subject_obj.scalar_one_or_none()
             if subject_obj is None:
@@ -54,9 +57,6 @@ async def save_subject_problems(problems_data: list[ProblemData]) -> None:
                         )
                         session.add(theme_obj)
                     theme_objects[theme_data.codifier_id] = theme_obj
-
-        # Creating FipiBankProblem tasks
-        for problem_data in tqdm(problems_data, desc="Saving problems to database"):
             try:
                 (
                     await session.execute(
@@ -71,8 +71,8 @@ async def save_subject_problems(problems_data: list[ProblemData]) -> None:
                     problem_id=problem_data.problem_id,
                     url=problem_data.url,
                     condition_html=problem_data.condition_html,
-                    gia_types=[gia_type_obj],
-                    subjects=[subject_obj],
+                    gia_type=[gia_type_obj],
+                    subject=[subject_obj],
                     file_urls=[
                         FipiBankProblemFile(file_url=file_url)
                         for file_url in problem_data.file_urls
