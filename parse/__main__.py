@@ -173,9 +173,16 @@ class FipiBankClient:
                 all_problem_themes.extend(prob.themes)
         return all_problem_themes
 
-    async def parse_and_save_all_problems(self) -> None:
+    async def parse_and_save_all_problems(self, subject_names: list[str] | None = None) -> None:
         t1 = time.perf_counter()
         subject_ids = await self.get_subject_ids()
+        if subject_names:
+            subject_ids = {
+                subject_name: subject_hash
+                for subject_name, subject_hash in subject_ids.items()
+                if subject_name in subject_names
+            }
+            print(f"Subjects to parse problems: {list(subject_ids.keys())}")
         get_pages_htmls_tasks: list[asyncio.Task[str]] = []
         subject_themes_data: dict[
             str, dict[str, str]
@@ -196,7 +203,7 @@ class FipiBankClient:
 
         print("Got all htmls. Started parsing them")
 
-        all_problems = []  # Accumulate all problems here
+        all_problems = []
 
         for subject_name, subject_hash in tqdm(
             subject_ids.items(), desc="Parsing subjects problems"
@@ -270,11 +277,9 @@ class FipiBankClient:
 
 async def main() -> None:
     await register_models()
-    gia_type = "ege"
-    async with FipiBankClient(gia_type) as client:
-        await client.parse_and_save_all_problems()
-        client.set_gia_type("oge")
-        await client.parse_and_save_all_problems()
+
+    async with FipiBankClient("ege") as client:
+        await client.parse_and_save_all_problems(subject_names=["Информатика и ИКТ"])
 
 
 if __name__ == "__main__":

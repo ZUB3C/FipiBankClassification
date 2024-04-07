@@ -33,7 +33,7 @@ python -m pip install -r requirements.txt
 python -m pip install -r dev-requirements.txt
 ```
 
-## Сбор базы данных со всеми задачами ОГЭ и ЕГЭ
+## Сбор базы данных с задачами ЕГЭ по информатике
 
 ```shell
 python -m parse
