@@ -68,6 +68,7 @@ class FipiBankProblem(Base):
     subject = relationship("Subject", secondary="fipibank_problems_subjects")
     file_urls = relationship("FipiBankProblemFile")
     themes = relationship("Theme", secondary="fipibank_problems_codifier_themes")
+    exam_number = Column(Integer, nullable=True)
 
     def __repr__(self) -> str:
         return f"<FipiBankProblem problem_id={self.problem_id}>"
