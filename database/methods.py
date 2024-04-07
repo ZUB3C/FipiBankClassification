@@ -20,7 +20,6 @@ from parse.problem_data import ProblemData
 
 
 async def save_subject_problems(problems_data: list[ProblemData]) -> None:
-    # print(problems_data)
     async with async_session() as session, session.begin():
         # Creating or retrieving theme objects from the database
         theme_objects = {}
@@ -92,7 +91,7 @@ async def save_subject_problems(problems_data: list[ProblemData]) -> None:
 
 
 async def get_problems_with_details(
-    gia_type: str, subject_name: str, theme_codifier_id: str
+    gia_type: str, subject_name: str, content_codifier_theme_id: str
 ) -> pd.DataFrame:
     async with async_session() as session:
         stmt = (
@@ -100,9 +99,6 @@ async def get_problems_with_details(
                 FipiBankProblem.problem_id,
                 FipiBankProblem.url,
                 FipiBankProblem.condition_html,
-                GiaType.name.label("gia_type"),
-                Subject.name.label("subject_name"),
-                Theme.codifier_id.label("theme_codifier_id"),
             )
             .select_from(
                 FipiBankProblem.__table__.join(FipiBankProblemGiaType)
@@ -115,7 +111,7 @@ async def get_problems_with_details(
             .where(
                 GiaType.name == gia_type,
                 Subject.name == subject_name,
-                Theme.codifier_id == theme_codifier_id,
+                Theme.codifier_id == content_codifier_theme_id,
             )
             .where(Subject.name == subject_name)
         )
@@ -126,19 +122,25 @@ async def get_problems_with_details(
         return pd.DataFrame(rows, columns=result.keys())
 
 
+async def add_exam_number_to_problems(problem_ids: list[str], exam_number: int) -> None:
+    async with async_session() as session:
+        try:
+            problems = await session.execute(
+                select(FipiBankProblem).filter(FipiBankProblem.problem_id.in_(problem_ids))
+            )
+            problems = problems.scalars().all()
+
+            for problem in problems:
+                problem.exam_number = exam_number
+
+            await session.commit()
+        except NoResultFound:
+            print("No FipiBank problems found with provided IDs.")
+
+
 if __name__ == "__main__":
     gia_type = "ege"
     subject_name = "Информатика и ИКТ"
-    theme_codifier_id = "1.1"
+    theme_codifier_id = "2.1"
     df = asyncio.run(get_problems_with_details(gia_type, subject_name, theme_codifier_id))
-    print(
-        df[
-            [
-                "problem_id",
-                "url",
-                "gia_type",
-                "subject_name",
-                "theme_codifier_id",
-            ]
-        ].to_string()
-    )
+    print(df.drop("condition_html", axis=1).to_string())
