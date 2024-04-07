@@ -50,7 +50,6 @@ exclude = [
     ".cache",
     "build",
     "dist",
-    "venv",
     "scripts",
     "old_bank_downloader",
     "classification",
