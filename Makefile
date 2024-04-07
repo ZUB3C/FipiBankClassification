@@ -3,12 +3,12 @@
 project_dir := .
 
 lint:
-	@ruff check --diff $(project_dir)
-	@ruff $(project_dir)
+	@ruff format --check --diff $(project_dir)
+	@ruff check $(project_dir)
 	@mypy --strict $(project_dir)
 
-reformat:
+format:
 	@ruff format $(project_dir)
-	@ruff --fix $(project_dir)
+	@ruff check --fix $(project_dir)
 
-.PHONY: lint, reformat
+.PHONY: lint, format
