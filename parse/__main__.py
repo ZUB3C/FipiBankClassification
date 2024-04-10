@@ -64,7 +64,7 @@ class FipiBankClient:
                     await asyncio.sleep(delay_between_retry)
                     return await self._get(url=url, params=params)
                 return await response.text()
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, aiohttp.ServerDisconnectedError):
             delay_between_retry = random.uniform(7.5, 15)
             print(
                 f"Retrying {urljoin(url, '?' + urlencode(params))}."
@@ -279,7 +279,10 @@ async def main() -> None:
     await register_models()
 
     async with FipiBankClient("ege") as client:
-        await client.parse_and_save_all_problems(subject_names=["Информатика и ИКТ"])
+        # await client.parse_and_save_all_problems(subject_names=["Информатика и ИКТ"])
+        await client.parse_and_save_all_problems()
+        client.set_gia_type("oge")
+        await client.parse_and_save_all_problems()
 
 
 if __name__ == "__main__":

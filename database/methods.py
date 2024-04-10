@@ -122,6 +122,21 @@ async def get_problems_with_details(
         return pd.DataFrame(rows, columns=result.keys())
 
 
+async def get_problems_by_exam_number(exam_number: int) -> list[str]:
+    async with async_session() as session:
+        return (
+            (
+                await session.execute(
+                    select(FipiBankProblem.condition_html).where(
+                        FipiBankProblem.exam_number == exam_number
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+
 async def add_exam_number_to_problems(problem_ids: list[str], exam_number: int) -> None:
     async with async_session() as session:
         try:
@@ -139,8 +154,4 @@ async def add_exam_number_to_problems(problem_ids: list[str], exam_number: int) 
 
 
 if __name__ == "__main__":
-    gia_type = "ege"
-    subject_name = "Информатика и ИКТ"
-    theme_codifier_id = "2.1"
-    df = asyncio.run(get_problems_with_details(gia_type, subject_name, theme_codifier_id))
-    print(df.drop("condition_html", axis=1).to_string())
+    print(len(asyncio.run(get_problems_by_exam_number(exam_number=2))))

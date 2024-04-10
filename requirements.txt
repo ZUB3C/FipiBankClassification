@@ -11,3 +11,6 @@ numpy~=1.26.4
 scipy~=1.13.0
 requests~=2.31.0
 jupyter~=1.0.0
+matplotlib~=3.8.4
+Flask~=3.0.3
+Jinja2~=3.1.3

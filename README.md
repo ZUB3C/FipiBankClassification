@@ -38,3 +38,8 @@ python -m pip install -r dev-requirements.txt
 ```shell
 python -m parse
 ```
+## Запуск сайта
+
+```shell
+python web_ui/app.py
+```

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Site</title>
+</head>
+<body>
+<select id="examNumber">
+    <option value="0">Выберите номер экзамена</option>
+    <!-- Генерируем опции для чисел от 1 до 27 и от -1 до -27 -->
+    {% for i in range(1, 28) %}
+    <option value="{{ i }}">{{ i }}</option>
+    {% endfor %}
+    {% for i in range(-1, -28, -1) %}
+    <option value="{{ i }}">{{ i }}</option>
+    {% endfor %}
+</select>
+<div id="problems"></div>
+
+<script>
+    document.getElementById('examNumber').addEventListener('change', async function() {
+        const examNumber = this.value;
+        if (examNumber != 0) {
+            const response = await fetch('/get_problems', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ exam_number: examNumber })
+            });
+            const problems = await response.json();
+            document.getElementById('problems').innerHTML = problems.join('');
+        } else {
+            document.getElementById('problems').innerHTML = '';
+        }
+    });
+</script>
+</body>
+</html>
