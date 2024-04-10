@@ -6,21 +6,30 @@
     <title>Simple Site</title>
 </head>
 <body>
-<select id="examNumber">
-    <option value="0">Выберите номер экзамена</option>
-    <!-- Генерируем опции для чисел от 1 до 27 и от -1 до -27 -->
+
+<h1>Задания открытого банка ФИПИ по предмету "Информатика и ИКТ"</h1>
+
+<h2>Актуальные задания</h2>
+<select id="currentExamNumber">
+    <option value="0">Выберите число</option>
     {% for i in range(1, 28) %}
     <option value="{{ i }}">{{ i }}</option>
     {% endfor %}
+</select>
+
+<h2>Устаревшие задания</h2>
+<select id="outdatedExamNumber">
+    <option value="0">Выберите число</option>
     {% for i in range(-1, -28, -1) %}
     <option value="{{ i }}">{{ i }}</option>
     {% endfor %}
 </select>
+
 <div id="problems"></div>
 
 <script>
-    document.getElementById('examNumber').addEventListener('change', async function() {
-        const examNumber = this.value;
+    // Функция для получения заданий по номеру экзамена
+    async function fetchProblems(examNumber) {
         if (examNumber != 0) {
             const response = await fetch('/get_problems', {
                 method: 'POST',
@@ -29,12 +38,34 @@
                 },
                 body: JSON.stringify({ exam_number: examNumber })
             });
-            const problems = await response.json();
-            document.getElementById('problems').innerHTML = problems.join('');
+            return await response.json();
         } else {
-            document.getElementById('problems').innerHTML = '';
+            return [];
         }
-    });
+    }
+
+    // Обработчик события изменения для обоих select-элементов
+    function handleSelectChange(event) {
+        const selectedValue = event.target.value;
+        const otherSelectId = event.target.id === 'currentExamNumber' ? 'outdatedExamNumber' : 'currentExamNumber';
+        const otherSelect = document.getElementById(otherSelectId);
+
+        // Установка первого значения в другом select-элементе
+        otherSelect.value = '0';
+
+        // Получение заданий и обновление интерфейса
+        fetchProblems(selectedValue)
+            .then(problems => {
+                document.getElementById('problems').innerHTML = problems.join('');
+            })
+            .catch(error => {
+                console.error('Ошибка при получении заданий:', error);
+            });
+    }
+
+    // Добавление обработчика событий изменения для обоих select-элементов
+    document.getElementById('currentExamNumber').addEventListener('change', handleSelectChange);
+    document.getElementById('outdatedExamNumber').addEventListener('change', handleSelectChange);
 </script>
 </body>
 </html>
