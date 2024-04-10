@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Site</title>
+    <title>ЕГЭ Информатика и ИКТ</title>
 </head>
 <body>
 
@@ -11,7 +11,7 @@
 
 <h2>Актуальные задания</h2>
 <select id="currentExamNumber">
-    <option value="0">Выберите число</option>
+    <option value="0">Выберите тип задачи</option>
     {% for i in range(1, 28) %}
     <option value="{{ i }}">{{ i }}</option>
     {% endfor %}
@@ -19,7 +19,7 @@
 
 <h2>Устаревшие задания</h2>
 <select id="outdatedExamNumber">
-    <option value="0">Выберите число</option>
+    <option value="0">Выберите тип задачи</option>
     {% for i in range(-1, -28, -1) %}
     <option value="{{ i }}">{{ i }}</option>
     {% endfor %}
