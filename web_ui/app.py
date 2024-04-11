@@ -48,4 +48,4 @@ def static_from_root():
 
 
 if __name__ == "__main__":
-    app.run(port=3636)  # noqa: S201
+    app.run(port=3636, debug=False)  # noqa: S201
