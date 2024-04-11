@@ -1,0 +1,14 @@
+[Unit]
+Description=FipiBank Problems Web-UI
+After=network.target
+
+[Service]
+User=fipibank-webui
+Group=fipibank-webui
+Type=simple
+WorkingDirectory=/opt/FipiBankClassification
+ExecStart=/opt/FipiBankClassification/venv/bin/python3 -m web_ui.app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
