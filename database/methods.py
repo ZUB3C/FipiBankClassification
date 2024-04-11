@@ -150,19 +150,17 @@ async def get_subject_problems(gia_type: str, subject_name: str) -> pd.DataFrame
         return pd.DataFrame(rows, columns=result.keys())
 
 
-async def get_problems_by_exam_number(exam_number: int) -> list[str]:
+async def get_problems_by_exam_number(exam_number: int | None) -> list[FipiBankProblem]:
     async with async_session() as session:
         return (
-            (
-                await session.execute(
-                    select(FipiBankProblem.condition_html).where(
-                        FipiBankProblem.exam_number == exam_number
-                    )
-                )
+            await session.execute(
+                select(
+                    FipiBankProblem.problem_id,
+                    FipiBankProblem.url,
+                    FipiBankProblem.condition_html,
+                ).where(FipiBankProblem.exam_number == exam_number)
             )
-            .scalars()
-            .all()
-        )
+        ).fetchall()
 
 
 async def add_exam_number_to_problems(problem_ids: list[str], exam_number: int | None) -> None:

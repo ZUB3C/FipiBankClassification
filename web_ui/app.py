@@ -35,9 +35,10 @@ def index():
 @app.route("/get_problems", methods=["POST"])
 def get_problems():
     exam_number = int(request.json["exam_number"])
-    problems = asyncio.run(get_problems_by_exam_number(exam_number))
+    problems_data = asyncio.run(get_problems_by_exam_number(exam_number))
+    problem_htmls = [i.condition_html for i in problems_data]
     problems = [
-        remove_element_by_css_selector(i, "table > tbody > tr:nth-child(2)") for i in problems
+        remove_element_by_css_selector(i, "table > tbody > tr:nth-child(2)") for i in problem_htmls
     ]
     return jsonify(problems)
 
