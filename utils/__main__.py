@@ -122,22 +122,25 @@ def clusterize_tasks_elbow_method(
     data = tfidf_vectorizer.fit_transform(df["condition_text"])
 
     # Plot inertia graph for different numbers of clusters
+    max_n_clusters_ = min(max_n_clusters + 1, len(df))
     inertia_list = []
-    for k in trange(1, max_n_clusters + 1, desc="Clustering progress"):
+    for k in trange(1, max_n_clusters_, desc="Clustering progress"):
         kmeans = KMeans(n_clusters=k, random_state=42)
         kmeans.fit(data)
         inertia_list.append(kmeans.inertia_)
 
     # Determine the optimal number of clusters (k) using the elbow method
     plt.figure(figsize=(12, 10))
-    plt.plot(range(1, max_n_clusters + 1), inertia_list, marker="o")
+    plt.plot(range(1, max_n_clusters_), inertia_list, marker="o")
     plt.xlabel("Number of clusters")
     plt.ylabel("Inertia")
     plt.xticks(
-        range(1, x_step * math.ceil(max_n_clusters / x_step), x_step), rotation=x_ticks_rotation
+        range(1, x_step * (math.ceil(max_n_clusters_ / x_step) + 1), x_step),
+        rotation=x_ticks_rotation,
     )
     plt.yticks(
-        range(0, y_step * math.ceil(max(inertia_list) / y_step), y_step), rotation=y_ticks_rotation
+        range(0, y_step * (math.ceil(max(inertia_list) / y_step) + 1), y_step),
+        rotation=y_ticks_rotation,
     )
     plt.title("Elbow Method")
     if horizontal_lines:
@@ -156,13 +159,9 @@ def clusterize_tasks_elbow_method(
 
     return df
 
-    df["cluster_label"] = pipeline.predict(df["condition_text"])
-
-    return df
-
 
 async def print_and_get_theme_clustered_df(
-    content_codifier_theme_id: str,
+    content_codifier_theme_id: str | list[str],
     print_problem_clusters: bool = True,
     max_n_clusters: int = 10,
     optimal_n_clusters: int | None = None,
@@ -174,7 +173,20 @@ async def print_and_get_theme_clustered_df(
     y_step: int = 10,
 ) -> pd.DataFrame:
     if df is None:
-        theme_df = await get_theme_df(content_codifier_theme_id=content_codifier_theme_id)
+        if isinstance(content_codifier_theme_id, str):
+            theme_df = await get_theme_df(content_codifier_theme_id=content_codifier_theme_id)
+        elif isinstance(content_codifier_theme_id, list):
+            theme_df = pd.concat(
+                [
+                    await get_theme_df(content_codifier_theme_id=theme_id)
+                    for theme_id in content_codifier_theme_id
+                ]
+            )
+        else:
+            raise ValueError(
+                f"content_codifier_theme_id should be str or list[str], not {type(content_codifier_theme_id)}"
+            )
+
     else:
         theme_df = df.copy()
     if theme_df.empty:
@@ -255,8 +267,10 @@ def create_cluster_id_to_exam_number_dict(
     exam_number: int,
     actual_cluster_ids: list[int],
     outdated_cluster_ids: list[int],
-    another_number_cluster_ids: list[int],
+    another_number_cluster_ids: list[int] | None = None,
 ) -> dict[int, int]:
+    if another_number_cluster_ids is None:
+        another_number_cluster_ids = []
     return (
         {i: exam_number for i in actual_cluster_ids}
         | {j: exam_number * -1 for j in outdated_cluster_ids}
