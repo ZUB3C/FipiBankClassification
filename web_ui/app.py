@@ -1,7 +1,7 @@
 import asyncio
 import os.path
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from jinja2 import Environment, FileSystemLoader
 from selectolax.parser import HTMLParser
 
@@ -40,6 +40,11 @@ def get_problems():
         remove_element_by_css_selector(i, "table > tbody > tr:nth-child(2)") for i in problems
     ]
     return jsonify(problems)
+
+
+@app.route("/robots.txt")
+def static_from_root():
+    return send_from_directory(app.static_folder, request.path[1:])
 
 
 if __name__ == "__main__":
