@@ -252,11 +252,16 @@ async def set_exam_number_from_clustered_df(
 
 
 def create_cluster_id_to_exam_number_dict(
-    exam_number: int, good_cluster_ids: list[int], bad_cluster_ids: list[int]
+    exam_number: int,
+    actual_cluster_ids: list[int],
+    outdated_cluster_ids: list[int],
+    another_number_cluster_ids: list[int],
 ) -> dict[int, int]:
-    return {i: exam_number for i in good_cluster_ids} | {
-        j: exam_number * -1 for j in bad_cluster_ids
-    }
+    return (
+        {i: exam_number for i in actual_cluster_ids}
+        | {j: exam_number * -1 for j in outdated_cluster_ids}
+        | {k: None for k in another_number_cluster_ids}
+    )
 
 
 if __name__ == "__main__":
