@@ -1,7 +1,7 @@
 import asyncio
 
 import pandas as pd
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm.exc import NoResultFound
 from tqdm import tqdm
 
@@ -112,6 +112,34 @@ async def get_problems_with_details(
                 GiaType.name == gia_type,
                 Subject.name == subject_name,
                 Theme.codifier_id == content_codifier_theme_id,
+                FipiBankProblem.exam_number == None,  # noqa: E711
+            )
+            .where(Subject.name == subject_name)
+        )
+
+        result = await session.execute(stmt)
+        rows = result.fetchall()
+
+        return pd.DataFrame(rows, columns=result.keys())
+
+
+async def get_subject_problems(gia_type: str, subject_name: str) -> pd.DataFrame:
+    async with async_session() as session:
+        stmt = (
+            select(
+                FipiBankProblem.problem_id,
+                FipiBankProblem.url,
+                FipiBankProblem.condition_html,
+            )
+            .select_from(
+                FipiBankProblem.__table__.join(FipiBankProblemGiaType)
+                .join(GiaType)
+                .join(FipiBankProblemSubject)
+                .join(Subject)
+            )
+            .where(
+                GiaType.name == gia_type,
+                Subject.name == subject_name,
             )
             .where(Subject.name == subject_name)
         )
@@ -137,7 +165,7 @@ async def get_problems_by_exam_number(exam_number: int) -> list[str]:
         )
 
 
-async def add_exam_number_to_problems(problem_ids: list[str], exam_number: int) -> None:
+async def add_exam_number_to_problems(problem_ids: list[str], exam_number: int | None) -> None:
     async with async_session() as session:
         try:
             problems = await session.execute(
@@ -153,5 +181,14 @@ async def add_exam_number_to_problems(problem_ids: list[str], exam_number: int) 
             print("No FipiBank problems found with provided IDs.")
 
 
+async def delete_exam_numbers():
+    async with async_session() as session:
+        stmt = update(FipiBankProblem).values({FipiBankProblem.exam_number: None})
+        await session.execute(stmt)
+        await session.commit()
+
+
 if __name__ == "__main__":
-    print(len(asyncio.run(get_problems_by_exam_number(exam_number=2))))
+    # df = asyncio.run(get_subject_problems(gia_type="ege", subject_name="Информатика и ИКТ"))
+    # print(len(df))
+    print(len(asyncio.run(get_problems_with_details("ege", "Информатика и ИКТ", "2.10"))))

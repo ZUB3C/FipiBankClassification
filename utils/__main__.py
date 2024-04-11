@@ -10,7 +10,6 @@ from nltk.corpus import stopwords
 from selectolax.parser import HTMLParser
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.pipeline import make_pipeline
 from tqdm import trange
 
 from database.methods import add_exam_number_to_problems, get_problems_with_details
@@ -111,6 +110,8 @@ def clusterize_tasks_elbow_method(
     x_ticks_rotation: int | None = None,
     y_ticks_rotation: int | None = None,
     horizontal_lines: bool = False,
+    x_step: int = 1,
+    y_step: int = 10,
 ) -> pd.DataFrame:
     russian_stop_words = stopwords.words("russian")
 
@@ -132,8 +133,12 @@ def clusterize_tasks_elbow_method(
     plt.plot(range(1, max_n_clusters + 1), inertia_list, marker="o")
     plt.xlabel("Number of clusters")
     plt.ylabel("Inertia")
-    plt.xticks(range(1, max_n_clusters + 1), rotation=x_ticks_rotation)
-    plt.yticks(range(0, 10 * math.ceil(max(inertia_list) / 10), 10), rotation=y_ticks_rotation)
+    plt.xticks(
+        range(1, x_step * math.ceil(max_n_clusters / x_step), x_step), rotation=x_ticks_rotation
+    )
+    plt.yticks(
+        range(0, y_step * math.ceil(max(inertia_list) / y_step), y_step), rotation=y_ticks_rotation
+    )
     plt.title("Elbow Method")
     if horizontal_lines:
         for idx, inertia in enumerate(inertia_list):
@@ -145,14 +150,11 @@ def clusterize_tasks_elbow_method(
     if optimal_n_clusters is None:
         optimal_n_clusters = int(input("Enter the optimal number of clusters: "))
 
-    # Create a pipeline that will vectorize text and
-    # apply k-means with the optimal number of clusters
-    pipeline = make_pipeline(
-        tfidf_vectorizer, KMeans(n_clusters=optimal_n_clusters, random_state=42)
-    )
+    kmeans_optimal = KMeans(n_clusters=optimal_n_clusters, random_state=42)
+    kmeans_optimal.fit(data)
+    df["cluster_label"] = kmeans_optimal.labels_
 
-    # Cluster problems
-    pipeline.fit(df["condition_text"])
+    return df
 
     df["cluster_label"] = pipeline.predict(df["condition_text"])
 
@@ -167,8 +169,14 @@ async def print_and_get_theme_clustered_df(
     x_ticks_rotation: int | None = None,
     y_ticks_rotation: int | None = None,
     horizontal_lines: bool = False,
+    df: pd.DataFrame | None = None,
+    x_step: int = 1,
+    y_step: int = 10,
 ) -> pd.DataFrame:
-    theme_df = await get_theme_df(content_codifier_theme_id=content_codifier_theme_id)
+    if df is None:
+        theme_df = await get_theme_df(content_codifier_theme_id=content_codifier_theme_id)
+    else:
+        theme_df = df.copy()
     if theme_df.empty:
         raise ValueError(f"No problems in database with {content_codifier_theme_id=}")
     theme_df["condition_text"] = theme_df["condition_html"].apply(
@@ -183,6 +191,8 @@ async def print_and_get_theme_clustered_df(
         x_ticks_rotation=x_ticks_rotation,
         y_ticks_rotation=y_ticks_rotation,
         horizontal_lines=horizontal_lines,
+        x_step=x_step,
+        y_step=y_step,
     )
     print(
         "Number of problems in clusters: "
