@@ -19,10 +19,8 @@
 
 <h2>Устаревшие задания</h2>
 <select id="outdatedExamNumber">
-    <option value="0">Выберите тип задачи</option>
-    {% for i in range(-1, -28, -1) %}
-    <option value="{{ i }}">{{ i }}</option>
-    {% endfor %}
+    <option value="0">Выберите устаревшие задания</option>
+    <option value="-1">Все устаревшие задания</option>
 </select>
 
 <div id="problems"></div>

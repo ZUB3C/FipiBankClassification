@@ -351,4 +351,3 @@ cython_debug/
 *.csv
 
 *.png
-*.ipynb
