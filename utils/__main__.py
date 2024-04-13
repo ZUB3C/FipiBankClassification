@@ -4,6 +4,7 @@ from collections.abc import Coroutine
 from typing import Any, TypeVar
 
 import matplotlib.pyplot as plt
+import nltk
 import pandas as pd
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
@@ -113,6 +114,7 @@ def clusterize_tasks_elbow_method(
     x_step: int = 1,
     y_step: int = 10,
 ) -> pd.DataFrame:
+    nltk.download("stopwords")
     russian_stop_words = stopwords.words("russian")
 
     # Create a TfidfVectorizer object to transform text data into numerical features
@@ -279,6 +281,6 @@ def create_cluster_id_to_exam_number_dict(
 
 
 if __name__ == "__main__":
-    asyncio.run(print_and_get_theme_clustered_df("2.10", max_n_clusters=20, x_ticks_rotation=45))
+    asyncio.run(print_and_get_theme_clustered_df("3.2", max_n_clusters=20, x_ticks_rotation=45))
     # print(asyncio.run(get_theme_df("2.10")))
     # print(_run_async(get_theme_df("2.10")))
