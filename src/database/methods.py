@@ -5,7 +5,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm.exc import NoResultFound
 from tqdm import tqdm
 
-from ..types import ProblemData
+from ..problem_types import ProblemData
 from .models import (
     FipiBankProblem,
     FipiBankProblemCodifierTheme,

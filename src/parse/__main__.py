@@ -14,7 +14,7 @@ from selectolax.parser import HTMLParser, Node
 from tqdm import tqdm
 
 from ..database import register_models, save_subject_problems
-from ..types import ProblemData, ThemeData
+from ..problem_types import ProblemData, ThemeData
 
 if typing.TYPE_CHECKING:
     from types import TracebackType
