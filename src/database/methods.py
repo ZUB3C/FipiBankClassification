@@ -150,13 +150,16 @@ async def get_subject_problems(gia_type: str, subject_name: str) -> pd.DataFrame
         return pd.DataFrame(rows, columns=result.keys())
 
 
-async def get_problems_by_exam_number(exam_number: int) -> list[FipiBankProblem]:
+async def get_problems_by_exam_number(exam_number: int | None) -> list[FipiBankProblem]:
+    """Return problems with exam given number, return all problems if exam_number is None"""
     async with async_session() as session:
         query = select(
             FipiBankProblem.problem_id,
             FipiBankProblem.url,
             FipiBankProblem.condition_html,
         )
+        if exam_number is None:
+            return (await session.execute(query)).fetchall()
         if exam_number > 0:
             query = query.where(FipiBankProblem.exam_number == exam_number)
         else:
@@ -190,4 +193,5 @@ async def delete_exam_numbers():
 if __name__ == "__main__":
     # df = asyncio.run(get_subject_problems(gia_type="ege", subject_name="Информатика и ИКТ"))
     # print(len(df))
-    print(len(asyncio.run(get_problems_with_details("ege", "Информатика и ИКТ", "2.10"))))
+    # print(len(asyncio.run(get_problems_with_details("ege", "Информатика и ИКТ", "2.10"))))
+    print(asyncio.run(get_problems_by_exam_number(exam_number=None)))
