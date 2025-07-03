@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import random
 import re
 import time
-from types import TracebackType
+import typing
 from typing import Any
 from urllib.parse import urlencode, urljoin
 
@@ -14,6 +15,9 @@ from tqdm import tqdm
 
 from database import register_models, save_subject_problems
 from parse.problem_data import ProblemData, ThemeData
+
+if typing.TYPE_CHECKING:
+    from types import TracebackType
 
 
 class FipiBankClient:
@@ -99,7 +103,9 @@ class FipiBankClient:
         ):
             themes_data = subject_themes_data[subject_hash]
             subject_problems_list: list[ProblemData] = []  # Store problems for current subject
-            for html, (theme_codifier_id, theme_name) in zip(pages_htmls, themes_data.items()):
+            for html, (theme_codifier_id, theme_name) in zip(
+                pages_htmls, themes_data.items(), strict=False
+            ):
                 subject_problems: list[ProblemData] = self._parse_subject_problems_from_html(
                     html, subject_name, subject_hash
                 )
@@ -133,7 +139,7 @@ class FipiBankClient:
                     await asyncio.sleep(delay_between_retry)
                     return await self._get(url=url, params=params)
                 return await response.text()
-        except (asyncio.TimeoutError, aiohttp.ServerDisconnectedError):
+        except (TimeoutError, aiohttp.ServerDisconnectedError):
             delay_between_retry = random.uniform(7.5, 15)
             print(
                 f"Retrying {urljoin(url, '?' + urlencode(params))}."
@@ -156,7 +162,7 @@ class FipiBankClient:
             image_urls = re.findall(image_url_pattern, script_content)
             if image_urls:
                 for image_url in image_urls:
-                    image_url = urljoin(self._base_url, image_url.lstrip("../../"))
+                    image_url = urljoin(self._base_url, image_url.removeprefix("../../"))
                     condition_file_urls.append(image_url)
 
         url = f"{self._base_questions_url}?search=1&proj={subject_hash}&qid={problem_id}"
@@ -192,7 +198,7 @@ class FipiBankClient:
 
         skip_next_card = False
         problems_data_list: list[ProblemData] = []
-        for first_card_tag, second_card_tag in zip(problem_cards, problem_cards[1:]):
+        for first_card_tag, second_card_tag in itertools.pairwise(problem_cards):
             if skip_next_card:
                 skip_next_card = False
                 continue

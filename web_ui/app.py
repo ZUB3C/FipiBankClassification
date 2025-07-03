@@ -1,5 +1,5 @@
 import asyncio
-import os.path
+from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 from jinja2 import Environment, FileSystemLoader
@@ -9,7 +9,7 @@ from database.methods import get_problems_by_exam_number
 from misc import PathControl
 
 env = Environment(
-    loader=FileSystemLoader(PathControl.get(os.path.join("web_ui", "templates"))),
+    loader=FileSystemLoader(PathControl.get(str(Path("web_ui") / "templates"))),
     trim_blocks=True,
     lstrip_blocks=True,
     autoescape=True,
@@ -51,4 +51,4 @@ def static_from_root():
 
 
 if __name__ == "__main__":
-    app.run(port=3636, debug=False)  # noqa: S201
+    app.run(port=3636, debug=False)

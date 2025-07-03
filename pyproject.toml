@@ -1,5 +1,39 @@
+[project]
+name = "fipibank-classification"
+version = "0.1.0"
+description = "Download and classify tasks from https://ege.fipi.ru/bank"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp>=3.12.13",
+    "aiosqlite>=0.21.0",
+    "beautifulsoup4>=4.13.4",
+    "flask>=3.1.1",
+    "jinja2>=3.1.6",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.3",
+    "nltk>=3.9.1",
+    "numpy>=2.3.1",
+    "pandas>=2.3.0",
+    "requests>=2.32.4",
+    "scikit-learn>=1.7.0",
+    "scipy>=1.16.0",
+    "selectolax>=0.3.31",
+    "sqlalchemy>=2.0.41",
+    "tqdm>=4.67.1",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.17.1",
+    "ruff>=0.7.1",
+]
+
+[tool.uv]
+package = false
+
 [tool.ruff]
-target-version = "py310"
+target-version = "py313"
 line-length = 99
 exclude = [
     ".git",
@@ -14,34 +48,42 @@ exclude = [
 
 [tool.ruff.lint]
 select = [
-    "C",
-    "DTZ",
-    "E",
-    "F",
-    "I",
-    "ICN",
-    "N",
-    "PLC",
-    "PLE",
-    "Q",
-    "S",
-    "T",
-    "W",
-    "YTT",
-    "RET",
-    "SIM",
-    "ASYNC",
-    "UP",
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "I", # isort
+    "N", # pep8-naming
+    "S", # flake8-bandit
+    "B", # flake8-bugbear
+    "G", # flake8-logging-format
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "PD", # pandas-vet
+    "PLC", # pylint conventions
+    "PLE", # pylint errors
+    "SIM", # flake8-simplify
+    "RET", # flake8-return
+    "YTT", # flake8-2020
+    "RUF", # ruff-specific rules
+    "TCH", # flake8-type-checking
+    "PTH", # flake8-use-pathlib
+    "ASYNC", # flake8-async
 ]
 ignore = [
-    "T201",
-    "S311"
+    "E501", # Line too long
+    "PTH123", # `open()` should be replaced by `Path.open()`
+    "PD901", # Avoid using the generic variable name df for DataFrames
+    "RUF001", # String contains ambiguous `В` (CYRILLIC CAPITAL LETTER VE)
+    "RUF003", # Ambiguous unicode character comment
+    "RUF006", # Store a reference to the return value of `asyncio.create_task
+    "PD002", # `inplace=True` should be avoided; it has inconsistent behavior
+    "B007", # Loop control variable not used within loop body
+    "B024", #  `PathControl` is an abstract base class, but it has no abstract methods or properties
+    "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
+
 ]
 
-[tool.mypy]
-plugins = [
-    "sqlalchemy.ext.mypy.plugin",
-]
+[tool.basedpyright]
 exclude = [
     ".git",
     ".venv",
@@ -51,13 +93,9 @@ exclude = [
     "build",
     "dist",
     "scripts",
-    "old_bank_downloader",
-    "classification",
-    "related-files",
-    "site-data-display-test",
-    "test_html_parsers"
 ]
-
-[[tool.mypy.overrides]]
-module = "selectolax.*"
-ignore_missing_imports = true
+typeCheckingMode = "standard"
+pythonPlatform = "All"
+pythonVersion = "3.13"
+reportMissingImports = true
+reportMissingTypeStubs = true

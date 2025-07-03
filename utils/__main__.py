@@ -19,7 +19,7 @@ from specifiers import BaseSpecifier, informatics_specifier_2024
 T = TypeVar("T")
 
 
-def _run_async(coroutine: Coroutine[Any, Any, T]) -> T:
+def _run_async[T](coroutine: Coroutine[Any, Any, T]) -> T:
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(coroutine)
 
@@ -274,9 +274,9 @@ def create_cluster_id_to_exam_number_dict(
     if another_number_cluster_ids is None:
         another_number_cluster_ids = []
     return (
-        {i: exam_number for i in actual_cluster_ids}
-        | {j: exam_number * -1 for j in outdated_cluster_ids}
-        | {k: None for k in another_number_cluster_ids}
+        dict.fromkeys(actual_cluster_ids, exam_number)
+        | dict.fromkeys(outdated_cluster_ids, exam_number * -1)
+        | dict.fromkeys(another_number_cluster_ids)
     )
 
 

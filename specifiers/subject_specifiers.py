@@ -86,6 +86,7 @@ informatics_specifier_2024 = BaseSpecifier(
             range(1, 27 + 1),
             _format_list(informatics_content_codifier_theme_ids),
             _format_list(informatics_requirement_codifier_theme_ids),
+            strict=False,
         )
     ],
 )
