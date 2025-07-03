@@ -13,8 +13,8 @@ import aiohttp
 from selectolax.parser import HTMLParser, Node
 from tqdm import tqdm
 
-from database import register_models, save_subject_problems
-from parse.problem_data import ProblemData, ThemeData
+from src.database import register_models, save_subject_problems
+from src.parse.problem_data import ProblemData, ThemeData
 
 if typing.TYPE_CHECKING:
     from types import TracebackType

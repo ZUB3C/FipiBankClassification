@@ -5,8 +5,8 @@ from flask import Flask, jsonify, request, send_from_directory
 from jinja2 import Environment, FileSystemLoader
 from selectolax.parser import HTMLParser
 
-from database.methods import get_problems_by_exam_number
-from misc import PathControl
+from src.database.methods import get_problems_by_exam_number
+from src.misc import PathControl
 
 env = Environment(
     loader=FileSystemLoader(PathControl.get(str(Path("web_ui") / "templates"))),

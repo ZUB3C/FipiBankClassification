@@ -5,7 +5,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm.exc import NoResultFound
 from tqdm import tqdm
 
-from database.models import (
+from src.database.models import (
     FipiBankProblem,
     FipiBankProblemCodifierTheme,
     FipiBankProblemFile,
@@ -16,7 +16,7 @@ from database.models import (
     Theme,
     async_session,
 )
-from parse.problem_data import ProblemData
+from src.parse.problem_data import ProblemData
 
 
 async def save_subject_problems(problems_data: list[ProblemData]) -> None:

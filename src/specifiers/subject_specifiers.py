@@ -1,4 +1,4 @@
-from specifiers.base import BaseSpecifier, Problem
+from src.specifiers.base import BaseSpecifier, Problem
 
 informatics_content_codifier_theme_ids = [
     "2.10",
