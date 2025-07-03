@@ -13,15 +13,15 @@ import aiohttp
 from selectolax.parser import HTMLParser, Node
 from tqdm import tqdm
 
-from src.database import register_models, save_subject_problems
-from src.parse.problem_data import ProblemData, ThemeData
+from ..database import register_models, save_subject_problems
+from ..types import ProblemData, ThemeData
 
 if typing.TYPE_CHECKING:
     from types import TracebackType
 
 
 class FipiBankClient:
-    _FIPIBANK_API_PAGE_SIZE_LIMIT = 2**12
+    _FIPIBANK_API_PAGE_SIZE_LIMIT = 2**14
     _TIMEOUT = 60
     _base_url: str = ""
     _base_index_url: str = ""
@@ -76,23 +76,24 @@ class FipiBankClient:
                 if subject_name in subject_names
             }
             print(f"Subjects to parse problems: {list(subject_ids.keys())}")
-        get_pages_htmls_tasks: list[asyncio.Task[str]] = []
+        get_pages_htmls_tasks = []
         subject_themes_data: dict[
             str, dict[str, str]
         ] = {}  # key -- hash, value -- themes_data dict
-        for subject_name, subject_hash in subject_ids.items():
-            themes_data = await self.get_theme_names_and_ids(subject_hash=subject_hash)
-            subject_themes_data[subject_hash] = themes_data
-            for theme_codifier_id, theme_name in themes_data.items():
-                get_pages_htmls_tasks.append(
-                    asyncio.create_task(
-                        self._get_subject_problems_html(
-                            subject_hash=subject_hash, theme_ids=[theme_codifier_id]
+        async with asyncio.TaskGroup() as tg:
+            for subject_name, subject_hash in subject_ids.items():
+                themes_data = await self.get_theme_names_and_ids(subject_hash=subject_hash)
+                subject_themes_data[subject_hash] = themes_data
+                for theme_codifier_id, theme_name in themes_data.items():
+                    get_pages_htmls_tasks.append(
+                        tg.create_task(
+                            self._get_subject_problems_html(
+                                subject_hash=subject_hash, theme_ids=[theme_codifier_id]
+                            )
                         )
                     )
-                )
 
-        pages_htmls: tuple[str] = await asyncio.gather(*get_pages_htmls_tasks)
+        pages_htmls: list[str] = [i.result() for i in get_pages_htmls_tasks]
 
         print("Got all htmls. Started parsing them")
 
@@ -162,7 +163,9 @@ class FipiBankClient:
             image_urls = re.findall(image_url_pattern, script_content)
             if image_urls:
                 for image_url in image_urls:
-                    image_url = urljoin(self._base_url, image_url.removeprefix("../../").removesuffix("','"))
+                    image_url = urljoin(
+                        self._base_url, image_url.removeprefix("../../").removesuffix("','")
+                    )
                     condition_file_urls.append(image_url)
 
         url = f"{self._base_questions_url}?search=1&proj={subject_hash}&qid={problem_id}"

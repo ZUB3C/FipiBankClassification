@@ -5,7 +5,8 @@ from sqlalchemy import select, update
 from sqlalchemy.orm.exc import NoResultFound
 from tqdm import tqdm
 
-from src.database.models import (
+from ..types import ProblemData
+from .models import (
     FipiBankProblem,
     FipiBankProblemCodifierTheme,
     FipiBankProblemFile,
@@ -16,7 +17,6 @@ from src.database.models import (
     Theme,
     async_session,
 )
-from src.parse.problem_data import ProblemData
 
 
 async def save_subject_problems(problems_data: list[ProblemData]) -> None:
@@ -150,7 +150,7 @@ async def get_subject_problems(gia_type: str, subject_name: str) -> pd.DataFrame
         return pd.DataFrame(rows, columns=result.keys())
 
 
-async def get_problems_by_exam_number(exam_number: int | None) -> list[FipiBankProblem]:
+async def get_problems_by_exam_number(exam_number: int) -> list[FipiBankProblem]:
     async with async_session() as session:
         query = select(
             FipiBankProblem.problem_id,

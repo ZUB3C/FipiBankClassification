@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
-from src.config import DATABASE_NAME
-from src.misc import PathControl
+from ..misc import PathControl
+from .const import DATABASE_NAME
 
 
 class GiaTypeEnum(Enum):

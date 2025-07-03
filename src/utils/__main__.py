@@ -13,8 +13,8 @@ from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
 from tqdm import trange
 
-from src.database.methods import add_exam_number_to_problems, get_problems_with_details
-from src.specifiers import BaseSpecifier, informatics_specifier_2024
+from ..database.methods import add_exam_number_to_problems, get_problems_with_details
+from ..specifiers import BaseSpecifier, informatics_specifier_2024
 
 T = TypeVar("T")
 
