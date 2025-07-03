@@ -162,7 +162,7 @@ class FipiBankClient:
             image_urls = re.findall(image_url_pattern, script_content)
             if image_urls:
                 for image_url in image_urls:
-                    image_url = urljoin(self._base_url, image_url.removeprefix("../../"))
+                    image_url = urljoin(self._base_url, image_url.removeprefix("../../").removesuffix("','"))
                     condition_file_urls.append(image_url)
 
         url = f"{self._base_questions_url}?search=1&proj={subject_hash}&qid={problem_id}"
