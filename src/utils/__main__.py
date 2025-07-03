@@ -14,6 +14,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from tqdm import trange
 
 from ..database.methods import add_exam_number_to_problems, get_problems_with_details
+from ..misc import PathControl
 from ..specifiers import BaseSpecifier, informatics_specifier_2024
 
 T = TypeVar("T")
@@ -114,7 +115,7 @@ def clusterize_tasks_elbow_method(
     x_step: int = 1,
     y_step: int = 10,
 ) -> pd.DataFrame:
-    nltk.download("stopwords")
+    nltk.download("stopwords", download_dir=PathControl.get(".nltk-data"))
     russian_stop_words = stopwords.words("russian")
 
     # Create a TfidfVectorizer object to transform text data into numerical features
