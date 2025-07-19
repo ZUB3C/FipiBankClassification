@@ -349,5 +349,3 @@ cython_debug/
 # Database
 *.db
 *.csv
-
-*.png
