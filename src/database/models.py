@@ -119,6 +119,6 @@ async def register_models() -> None:
 
 
 engine: AsyncEngine = create_async_engine(
-    url=f"sqlite+aiosqlite:///{PathControl.get(f'database/{DATABASE_NAME}')}"
+    url=f"sqlite+aiosqlite:///{PathControl.get(f'../{DATABASE_NAME}')}"
 )
 async_session = async_sessionmaker(bind=engine, expire_on_commit=False)
