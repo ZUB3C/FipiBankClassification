@@ -10,14 +10,18 @@ from typing import Any
 from urllib.parse import urlencode, urljoin
 
 import aiohttp
+import typer
 from selectolax.parser import HTMLParser, Node
 from tqdm import tqdm
 
 from ..database import register_models, save_subject_problems
 from ..problem_types import ProblemData, ThemeData
+from .const import EGE_SUBJECT_NAMES, HEADERS, OGE_SUBJECT_NAMES
 
 if typing.TYPE_CHECKING:
     from types import TracebackType
+
+app = typer.Typer(pretty_exceptions_enable=False)
 
 
 class FipiBankClient:
@@ -34,6 +38,7 @@ class FipiBankClient:
         self._session = aiohttp.ClientSession(
             connector=aiohttp.TCPConnector(ssl=False),  # disable ssl to connect to fipi.ru,
             timeout=aiohttp.ClientTimeout(self._TIMEOUT),
+            headers=HEADERS,
         )
 
     def set_gia_type(self, gia_type: str) -> None:
@@ -240,12 +245,64 @@ class FipiBankClient:
         await self._session.close()
 
 
-async def main() -> None:
+async def download_subjects(gia_type: str, subjects: list[str]):
     await register_models()
+    async with FipiBankClient(gia_type.lower()) as client:
+        await client.parse_and_save_all_problems(subject_names=subjects)
 
-    async with FipiBankClient("ege") as client:
-        await client.parse_and_save_all_problems(subject_names=["Информатика и ИКТ"])
+
+@app.command()
+def main(
+    gia_type: str = typer.Option(None, "--gia_type", help="Выберите тип экзамена (ОГЭ или ЕГЭ)"),
+    subjects: list[str] | None = typer.Option(  # noqa: B008
+        None, "-s", "--subjects", help="Список предметов для загрузки"
+    ),
+    oge: bool = typer.Option(False, "--oge", help="Загрузить задачи ОГЭ по выбранным предметам"),
+    ege: bool = typer.Option(False, "--ege", help="Загрузить задачи EГЭ по выбранным предметам"),
+    all_: bool = typer.Option(False, "--all", help="Загрузить все предметы"),
+):
+    gia_types_to_download = []
+    if oge:
+        gia_types_to_download.append("oge")
+    if ege:
+        gia_types_to_download.append("ege")
+    if not gia_types_to_download:
+        gia_type = typer.prompt("Выберите тип экзамена (ОГЭ или ЕГЭ)")
+        gia_type = gia_type.upper()
+        if gia_type not in ["ОГЭ", "ЕГЭ"]:
+            typer.echo("Ошибка: допустимы только 'ОГЭ' или 'ЕГЭ'")
+            raise typer.Exit(code=1)
+        gia_type_eng = {
+            "ОГЭ": "oge",
+            "ЕГЭ": "ege",
+        }
+        gia_types_to_download.append(gia_type_eng[gia_type])
+    for gia_type in gia_types_to_download:
+        subject_list = OGE_SUBJECT_NAMES if gia_type == "oge" else EGE_SUBJECT_NAMES
+
+        if all_:
+            selected_subjects = subject_list
+        elif subjects:
+            selected_subjects = subjects
+        else:
+            typer.echo("Выберите предметы для загрузки:")
+            for idx, subject in enumerate(subject_list, start=1):
+                typer.echo(f"{idx}. {subject}")
+
+            choices = typer.prompt("Введите номера предметов через пробел (например: 1 3 5)")
+            try:
+                indices = [int(x.strip()) - 1 for x in choices.split()]
+                selected_subjects = [
+                    subject_list[i] for i in indices if 0 <= i < len(subject_list)
+                ]
+            except (ValueError, IndexError):
+                typer.echo("Ошибка ввода. Пожалуйста, используйте корректные номера.")
+                raise typer.Exit(code=1)  # noqa: B904
+
+        typer.echo(f"Загрузка предметов ({gia_type}): {', '.join(selected_subjects)}")
+
+        asyncio.run(download_subjects(gia_type, selected_subjects))
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    app()
